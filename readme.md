@@ -29,7 +29,6 @@ The application allows a user to upload a payslip through a web interface. The b
 - **Maven**
 - **Environment-based configuration**
 - **Object-Oriented Programming**
-- **DTOs and data mapping**
 - **Exception handling**
 
 ## Architecture

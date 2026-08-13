@@ -11,7 +11,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.Pipe;
 import java.nio.file.Path;
 
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,23 +35,26 @@ public class PayslipsService {
     private String APP_ID;
     @Value("${uipath.app-secret}")
     private String APP_SECRET;
-//    @Value("${uipath.platrofm-url}")
-//    private String PLATFORM_URL;
-//    @Value("${uipath.organization}")
-//    private String ORGANIZATION_NAME;
-//    @Value("${uipath.tenant}")
-//    private String TENANT_NAME;
-//    @Value("${uipath.project-id}")
-//    private String PROJECT_ID;
-//    private String APP_ID;
-//    private String APP_SECRET;
-    private String PLATFORM_URL = "https://cloud.uipath.com";
-    private String ORGANIZATION_NAME = "tomaszrpa";
-    private String TENANT_NAME = "defaulttenant";
-    private String PROJECT_ID = "b9446211-aa89-f111-b337-002248a375c1";
-
-//    private static final String APP_ID = "45013995-8d99-4528-8067-ac133130ee20";
-//    private static final String APP_SECRET = "a8e$CuKNrSF8_DC0bI0mpTT9skPy?5XCmWB^2@HF(5Ja7)du$qUj?K%k8nKH~W$X";
+    @Value("${uipath.platform-url}")
+    private String PLATFORM_URL;
+    @Value("${uipath.organization}")
+    private String ORGANIZATION_NAME;
+    @Value("${uipath.tenant}")
+    private String TENANT_NAME;
+    @Value("${uipath.project-id}")
+    private String PROJECT_ID;
+    @Value("${uipath.extractor-id}")
+    private String EXTRACTOR_ID;
+//    private String BASE_URI =
+//            PLATFORM_URL + "/" +
+//                    ORGANIZATION_NAME + "/" +
+//                    TENANT_NAME +
+//                    "/du_/api/framework/projects/" +
+//                    PROJECT_ID + "/";
+//    private String PLATFORM_URL = "https://cloud.uipath.com";
+//    private String ORGANIZATION_NAME = "tomaszrpa";
+//    private String TENANT_NAME = "defaulttenant";
+//    private String PROJECT_ID = "b9446211-aa89-f111-b337-002248a375c1";
 
     private static HttpClient duHttpClient = HttpClient.newBuilder().build();
     private static String file = "<File Path>";
@@ -71,12 +73,6 @@ public class PayslipsService {
         return extractData(extractor.id, documentId, token);
     }
 
-    private final String BASE_URI =
-            PLATFORM_URL + "/" +
-                    ORGANIZATION_NAME + "/" +
-                    TENANT_NAME +
-                    "/du_/api/framework/projects/" +
-                    PROJECT_ID + "/";
 
     private String send(HttpRequest request)
             throws IOException, InterruptedException {
@@ -86,24 +82,47 @@ public class PayslipsService {
             .body();
     }
 
-    public Map<String, String> processPayslip(MultipartFile file) throws Exception {
-        System.out.println("ID: "+APP_ID+", Secret: "+APP_SECRET);
-        Path temp_payslip_path = Paths.get("D:/Kodowanie/UIPath/JobBoardsLogger/Dunnes Payslips Reader/Data/Email_Payslip_Processed/5040202_02DEC16.pdf");
+    private String createBaseUri(){
+        return PLATFORM_URL + "/" +
+                ORGANIZATION_NAME + "/" +
+                TENANT_NAME +
+                "/du_/api/framework/projects/" +
+                PROJECT_ID + "/";
+    }
 
-        String authToken = new PayslipsService().authenticate(APP_ID, APP_SECRET);
-        System.out.println("Token: " + authToken);
+    /**
+     * Generates authentication token
+     * digitizes input document
+     * gets the list of UiPath extractors
+     * extracts data from the document
+     *
+     * @param file
+     * @return
+     * @throws Exception
+     */
+    public Map<String, String> processPayslip(MultipartFile file) throws Exception {
+
+        System.out.println("PLATFORM_URL - "+PLATFORM_URL);
+        System.out.println("ORGANIZATION_NAME - "+ORGANIZATION_NAME);
+        System.out.println("TENANT_NAME - "+TENANT_NAME);
+        System.out.println("PROJECT_ID - "+PROJECT_ID);
+        System.out.println("EXTRACTOR_ID - "+EXTRACTOR_ID);
+        System.out.println("Base url - "+createBaseUri());
+
+        String authToken = authenticate(APP_ID, APP_SECRET);
+        System.out.println("Token generated: " + (authToken != null));
 
         String documentId = digitize(file, authToken);
         System.out.println("Document ID: " + documentId);
 
 //        Extractors List is a list of extractors Deployed Versions.
-        PayslipsService.ExtractorList extractorsList = new PayslipsService().getExtractorsList(authToken);
+        PayslipsService.ExtractorList extractorsList = getExtractorsList(authToken);
         System.out.println("Available extractors: "+extractorsList.extractors.size());
 
 //        Extract data from the Payslip
-        String temp_extractor = "2929ed78-f58b-f111-b339-000d3a673b82";
-        PayslipsService.ExtractionResponse extractionResponse = new PayslipsService().extractData(
-                temp_extractor, documentId, authToken);
+
+        PayslipsService.ExtractionResponse extractionResponse = extractData(
+                EXTRACTOR_ID, documentId, authToken);
         System.out.println("Data extracted.");
 
         return convertResultsToMap(extractionResponse);
@@ -180,7 +199,7 @@ public class PayslipsService {
             }).start();
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(BASE_URI + "digitization/start?api-version=1")) // <-- BASE_URI instead of baseUri
+                    .uri(URI.create(createBaseUri() + "digitization/start?api-version=1")) // <-- BASE_URI instead of baseUri
                     .header("Content-Type", httpEntity.getContentType().getValue())
                     .header("Authorization", "Bearer " + token)
                     .POST(BodyPublishers.ofInputStream(() -> Channels.newInputStream(pipe.source())))
@@ -222,7 +241,7 @@ public class PayslipsService {
         }).start();
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URI + "digitization/start?api-version=1")) // <-- BASE_URI instead of baseUri
+                .uri(URI.create(createBaseUri() + "digitization/start?api-version=1")) // <-- BASE_URI instead of baseUri
                 .header("Content-Type", httpEntity.getContentType().getValue())
                 .header("Authorization", "Bearer " + token)
                 .POST(BodyPublishers.ofInputStream(() -> Channels.newInputStream(pipe.source())))
@@ -262,7 +281,7 @@ public class PayslipsService {
                 .header("Authorization", "Bearer " +  token);
 //        HttpRequest request = requestBuilder.GET().build();
 //        HttpResponse<String> response = duHttpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        String url = BASE_URI + "extractors/?api-version=1";
+        String url = createBaseUri() + "extractors/?api-version=1";
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
@@ -284,7 +303,7 @@ public class PayslipsService {
     ExtractionResponse extractData(String extractorId, String documentId, String token) throws Exception {
         System.out.println("Extracting data");
 
-        String url = BASE_URI
+        String url = createBaseUri()
                 + "extractors/"
                 + extractorId
                 + "/extraction?api-version=1";
