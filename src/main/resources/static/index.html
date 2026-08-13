@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payslip Reader</title>
+</head>
+<body>
+
+<h1>Payslip Reader</h1>
+
+<form id="uploadForm">
+    <input type="file" id="file" name="file" accept=".pdf" required>
+    <button type="submit">
+        Upload Payslip
+    </button>
+</form>
+
+<h2>Results</h2>
+
+<pre id="result"></pre>
+
+<script>
+    const form = document.getElementById("uploadForm");
+    const result = document.getElementById("result");
+
+    form.addEventListener("submit", async function(event) {
+
+        event.preventDefault();
+        const fileInput = document.getElementById("file");
+
+        if (!fileInput.files.length) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+        result.textContent = "Processing...";
+
+        try {
+            const response = await fetch("/api/payslip/upload", {
+                method: "POST", body: formData});
+
+            if (!response.ok) {
+                throw new Error(
+                    "Server returned " + response.status
+                );
+            }
+
+            const data = await response.json();
+            result.textContent = JSON.stringify(data, null, 2);
+
+        } catch (error) {
+            result.textContent =
+                "Error: " + error.message;
+        }
+    });
+</script>
+
+</body>
+</html>
