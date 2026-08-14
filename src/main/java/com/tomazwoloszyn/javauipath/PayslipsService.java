@@ -102,12 +102,12 @@ public class PayslipsService {
      */
     public Map<String, String> processPayslip(MultipartFile file) throws Exception {
 
-        System.out.println("PLATFORM_URL - "+PLATFORM_URL);
-        System.out.println("ORGANIZATION_NAME - "+ORGANIZATION_NAME);
-        System.out.println("TENANT_NAME - "+TENANT_NAME);
-        System.out.println("PROJECT_ID - "+PROJECT_ID);
-        System.out.println("EXTRACTOR_ID - "+EXTRACTOR_ID);
-        System.out.println("Base url - "+createBaseUri());
+        System.out.println("PLATFORM_URL - "+PLATFORM_URL
+                    +"\n"+"ORGANIZATION_NAME - "+ORGANIZATION_NAME
+                    +"\n"+"TENANT_NAME - "+TENANT_NAME
+                    +"\n"+"PROJECT_ID - "+PROJECT_ID
+                    +"\n"+"EXTRACTOR_ID - "+EXTRACTOR_ID
+                    +"\n"+"Base url - "+createBaseUri());
 
         String authToken = authenticate(APP_ID, APP_SECRET);
         System.out.println("Token generated: " + (authToken != null));

@@ -11,6 +11,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -29,10 +31,20 @@ public class PayslipsController {
     }
 
     @PostMapping("/upload")
-    public Map<String, String> uploadPayslip(
-            @RequestParam("file") MultipartFile file) throws Exception {
-        System.out.println("Uploading payslip...");
+    public List<Map<String, String>> uploadPayslip(
+            @RequestParam("files") MultipartFile[] files) throws Exception {
+        List<Map<String, String>> results = new ArrayList<>();
 
-        return payslipsService.processPayslip(file);
+        for (MultipartFile file : files) {
+
+            System.out.println("Processing: " + file.getOriginalFilename());
+
+            Map<String, String> extractionResults =
+                    payslipsService.processPayslip(file);
+
+            results.add(extractionResults);
+        }
+
+        return results;
     }
 }
