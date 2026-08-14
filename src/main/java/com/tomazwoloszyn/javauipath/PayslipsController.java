@@ -2,6 +2,7 @@ package com.tomazwoloszyn.javauipath;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.tomazwoloszyn.javauipath.PayslipsService;
+import com.tomazwoloszyn.javauipath.dto.PayslipResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -31,20 +32,31 @@ public class PayslipsController {
     }
 
     @PostMapping("/upload")
-    public List<Map<String, String>> uploadPayslip(
+    @ResponseBody
+    public List<PayslipResult> uploadPayslip(
             @RequestParam("files") MultipartFile[] files) throws Exception {
-        List<Map<String, String>> results = new ArrayList<>();
+
+        System.out.println("Number of files received: " + files.length);
+        List<PayslipResult> results = new ArrayList<>();
 
         for (MultipartFile file : files) {
-
             System.out.println("Processing: " + file.getOriginalFilename());
+            try {
+                Map<String, String> extractionResults =
+                        payslipsService.processPayslip(file);
 
-            Map<String, String> extractionResults =
-                    payslipsService.processPayslip(file);
-
-            results.add(extractionResults);
+                PayslipResult payslipResult = new PayslipResult(
+                        file.getOriginalFilename(),
+                        extractionResults
+                );
+                results.add(payslipResult);
+            } catch (Exception e) {
+                System.err.println(
+                        "Error processing " + file.getOriginalFilename()
+                );
+                e.printStackTrace();
+            }
         }
-
         return results;
     }
 }
