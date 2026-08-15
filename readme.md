@@ -15,6 +15,10 @@ The application allows a user to upload a payslip through a web interface. The b
 - JSON communication between frontend and backend
 - Secure handling of UiPath API credentials through environment variables
 
+## Future Features
+- Adding a counter for the currently processed file
+- Processing non-pdf files (for example, jpg or png)
+
 ## Technologies & Skills Demonstrated
 
 - **Java**

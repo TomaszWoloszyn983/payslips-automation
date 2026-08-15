@@ -29,7 +29,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class PayslipsService {
 
-    // To generate credentials:
     // https://docs.uipath.com/automation-cloud/automation-cloud/latest/admin-guide/managing-external-applications
     @Value("${uipath.app-id}")
     private String APP_ID;
@@ -45,19 +44,8 @@ public class PayslipsService {
     private String PROJECT_ID;
     @Value("${uipath.extractor-id}")
     private String EXTRACTOR_ID;
-//    private String BASE_URI =
-//            PLATFORM_URL + "/" +
-//                    ORGANIZATION_NAME + "/" +
-//                    TENANT_NAME +
-//                    "/du_/api/framework/projects/" +
-//                    PROJECT_ID + "/";
-//    private String PLATFORM_URL = "https://cloud.uipath.com";
-//    private String ORGANIZATION_NAME = "tomaszrpa";
-//    private String TENANT_NAME = "defaulttenant";
-//    private String PROJECT_ID = "b9446211-aa89-f111-b337-002248a375c1";
 
     private static HttpClient duHttpClient = HttpClient.newBuilder().build();
-    private static String file = "<File Path>";
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ExtractionResponse extractPayslip(MultipartFile file) throws Exception {
@@ -72,7 +60,6 @@ public class PayslipsService {
 
         return extractData(extractor.id, documentId, token);
     }
-
 
     private String send(HttpRequest request)
             throws IOException, InterruptedException {
@@ -102,12 +89,12 @@ public class PayslipsService {
      */
     public Map<String, String> processPayslip(MultipartFile file) throws Exception {
 
-        System.out.println("PLATFORM_URL - "+PLATFORM_URL
-                    +"\n"+"ORGANIZATION_NAME - "+ORGANIZATION_NAME
-                    +"\n"+"TENANT_NAME - "+TENANT_NAME
-                    +"\n"+"PROJECT_ID - "+PROJECT_ID
-                    +"\n"+"EXTRACTOR_ID - "+EXTRACTOR_ID
-                    +"\n"+"Base url - "+createBaseUri());
+//        System.out.println("PLATFORM_URL - "+PLATFORM_URL
+//                    +"\n"+"ORGANIZATION_NAME - "+ORGANIZATION_NAME
+//                    +"\n"+"TENANT_NAME - "+TENANT_NAME
+//                    +"\n"+"PROJECT_ID - "+PROJECT_ID
+//                    +"\n"+"EXTRACTOR_ID - "+EXTRACTOR_ID
+//                    +"\n"+"Base url - "+createBaseUri());
 
         String authToken = authenticate(APP_ID, APP_SECRET);
         System.out.println("Token generated: " + (authToken != null));
@@ -138,7 +125,6 @@ public class PayslipsService {
         Map<String, String> payslipData = new LinkedHashMap<>();
         List<PayslipsService.ResultsDataPoint> fields = extractionResponse.extractionResult.resultsDocument.fields;
 
-        System.out.println("Processing extraction results ...");
         for (ResultsDataPoint field : fields) {
             String value = null;
 
@@ -149,16 +135,15 @@ public class PayslipsService {
             }
             payslipData.put(field.fieldName, value);
         }
-        System.out.println("Extraction results: " + payslipData);
+        System.out.println("Output generated");
+//        System.out.println("Extraction results: " + payslipData);
         return payslipData;
     }
 
 
     String authenticate(String appId, String appSecret) throws Exception {
         System.out.println("Authentication");
-        System.out.println("PLATFORM_URL = [" + PLATFORM_URL + "]");
         String tokenEndpoint = PLATFORM_URL + "/identity_/connect/token";
-        System.out.println("tokenEndpoint = [" + tokenEndpoint + "]");
         List<String> formData = new ArrayList<>();
         formData.add("client_id=" + appId);
         formData.add("client_secret=" + appSecret);
@@ -264,8 +249,6 @@ public class PayslipsService {
         }
 
         String responseBody = response.body();
-        System.out.println("Response body: " + responseBody);
-
         DigitizeResponse parsedResponse =
                 mapper.readValue(responseBody, DigitizeResponse.class);
         return parsedResponse.documentId;
@@ -277,10 +260,8 @@ public class PayslipsService {
      */
     ExtractorList getExtractorsList(String token) throws Exception {
         System.out.println("Getting extractor list");
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                .header("Authorization", "Bearer " +  token);
-//        HttpRequest request = requestBuilder.GET().build();
-//        HttpResponse<String> response = duHttpClient.send(request, HttpResponse.BodyHandlers.ofString());
+//        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+//                .header("Authorization", "Bearer " +  token);
         String url = createBaseUri() + "extractors/?api-version=1";
 
         HttpRequest request = HttpRequest.newBuilder()
@@ -316,18 +297,13 @@ public class PayslipsService {
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
-//        String requestBody = "{ \"documentId\" : \""+documentId+"\"}";
-//        HttpRequest request = requestBuilder.POST(HttpRequest.BodyPublishers.ofString(requestBody)).build();
         HttpResponse<String> response = duHttpClient.send(request, HttpResponse.BodyHandlers.ofString());
         String responseBody = response.body();
         ExtractionResponse parsedResponse = mapper.readValue(
                 responseBody,
                 ExtractionResponse.class
         );
-
-        System.out.println("Response body: " + response.body());
         System.out.println("Response status: " + response.statusCode());
-
         return parsedResponse;
     }
 

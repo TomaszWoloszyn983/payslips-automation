@@ -12,13 +12,20 @@ const resultsSummary =
 const resultsTable =
     document.getElementById("resultsTable");
 
+const downloadCsvButton =
+    document.getElementById("downloadCsvButton");
+
+downloadCsvButton.addEventListener("click", downloadCsv);
+
 const MAX_FILES = 3;
+let currentResults = [];
 
 /*
         Upload
  */
 form.addEventListener("submit", async function(event) {
     event.preventDefault();
+    downloadCsvButton.classList.add("d-none");
     const files = fileInput.files;
 
     // -------------------------
@@ -81,12 +88,14 @@ form.addEventListener("submit", async function(event) {
         const data = await response.json();
         console.log("Backend response:", data);
         result.textContent = "";
-        displayResults(data);
+        currentResults = data; // Needed to save in csv/excel
+        // displayResults(data);
 
         // -------------------------
         // Display results
         // -------------------------
         displayResults(data);
+        downloadCsvButton.classList.remove("d-none");
         result.innerHTML = "";
     } catch (error) {
         console.error(error);
@@ -285,4 +294,78 @@ function hideError() {
     const errorMessage = document.getElementById("errorMessage");
     errorMessage.textContent = "";
     errorMessage.classList.add("d-none");
+}
+
+/*
+        Save the results to file
+ */
+function downloadCsv() {
+    if (!currentResults || currentResults.length === 0) {
+        return;
+    }
+
+    const csv = createCsv(currentResults);
+    const blob = new Blob(
+        [csv],
+        { type: "text/csv;charset=utf-8;" }
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "payslip-results.csv";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function createCsv(results) {
+    // Collect all possible field names
+    const fieldNames = new Set();
+
+    results.forEach(result => {
+        Object.keys(result.fields || {}).forEach(fieldName => {
+            fieldNames.add(fieldName);
+        });
+    });
+    const fields = Array.from(fieldNames);
+
+    // Header
+    const headers = [
+        "FileName",
+        ...fields
+    ];
+
+    const rows = [];
+    rows.push(headers);
+
+    // Data rows
+    results.forEach(result => {
+        const row = [
+            result.fileName
+        ];
+
+        fields.forEach(fieldName => {
+            const value =
+                result.fields?.[fieldName] ?? "";
+            row.push(value);
+        });
+        rows.push(row);
+    });
+    return rows
+        .map(row => row.map(escapeCsvValue).join(","))
+        .join("\r\n");
+}
+
+function escapeCsvValue(value) {
+
+    value = String(value ?? "");
+
+    // Escape quotes
+    value = value.replace(/"/g, '""');
+
+    // Put every value inside quotes
+    return `"${value}"`;
 }
