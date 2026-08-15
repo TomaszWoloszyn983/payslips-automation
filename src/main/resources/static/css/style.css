@@ -1,0 +1,30 @@
+/* Table container */
+.table-responsive {
+    max-height: 70vh;
+    overflow: auto;
+}
+
+/* Sticky header */
+.results-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Sticky first column */
+.results-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 20;
+}
+
+/* Top-left cell needs the highest z-index */
+.results-table thead th:first-child {
+    z-index: 30;
+}
+
+#header-container{
+    position: relative;
+    color: #7b7b9e;
+    text-align: center;
+}
