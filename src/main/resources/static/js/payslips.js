@@ -304,9 +304,10 @@ function downloadCsv() {
         return;
     }
 
+    console.log("CSV source data:", currentResults);
     const csv = createCsv(currentResults);
     const blob = new Blob(
-        [csv],
+        ["\uFEFF", csv],
         { type: "text/csv;charset=utf-8;" }
     );
     const url = URL.createObjectURL(blob);
@@ -324,6 +325,7 @@ function downloadCsv() {
 function createCsv(results) {
     // Collect all possible field names
     const fieldNames = new Set();
+
 
     results.forEach(result => {
         Object.keys(result.fields || {}).forEach(fieldName => {
@@ -348,8 +350,7 @@ function createCsv(results) {
         ];
 
         fields.forEach(fieldName => {
-            const value =
-                result.fields?.[fieldName] ?? "";
+            const value = cleanValue(result.fields?.[fieldName]);
             row.push(value);
         });
         rows.push(row);
@@ -360,12 +361,18 @@ function createCsv(results) {
 }
 
 function escapeCsvValue(value) {
-
     value = String(value ?? "");
-
     // Escape quotes
     value = value.replace(/"/g, '""');
-
     // Put every value inside quotes
     return `"${value}"`;
+}
+
+function cleanValue(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+    return String(value)
+        .replace(/^\(/, "")   // remove opening bracket at the beginning
+        .trim();
 }
