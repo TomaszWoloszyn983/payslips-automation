@@ -16,6 +16,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
@@ -44,6 +46,8 @@ public class PayslipsService {
     private String PROJECT_ID;
     @Value("${uipath.extractor-id}")
     private String EXTRACTOR_ID;
+    @Value("${uipath.classification-tag}")
+    private String classificationTag;
 
     private static HttpClient duHttpClient = HttpClient.newBuilder().build();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -102,9 +106,24 @@ public class PayslipsService {
         String documentId = digitize(file, authToken);
         System.out.println("Document ID: " + documentId);
 
+//        JsonNode classifiers = getClassifiers(authToken);
+//        System.out.println("Tags retrived: " + classifiers.toString());
+
+        JsonNode classification = classifyDocument(documentId, authToken);
+
+
+//        I think I only used this function to check what the Tags were.
+//        I don't think I need it this method anymore'
+//        JsonNode tags = getTags(authToken);
+//        System.out.println("Tags retrived: " + tags.toString());
+
 //        Extractors List is a list of extractors Deployed Versions.
         PayslipsService.ExtractorList extractorsList = getExtractorsList(authToken);
         System.out.println("Available extractors: "+extractorsList.extractors.size());
+//        for(Extractor extractor : extractorsList.extractors){
+//            System.out.println(extractor.name+ " - " + extractor.id+" - "+extractor.status);
+//        }
+
 
 //        Extract data from the Payslip
 
@@ -142,12 +161,15 @@ public class PayslipsService {
 
 
     String authenticate(String appId, String appSecret) throws Exception {
+
         System.out.println("Authentication");
+
         String tokenEndpoint = PLATFORM_URL + "/identity_/connect/token";
         List<String> formData = new ArrayList<>();
         formData.add("client_id=" + appId);
         formData.add("client_secret=" + appSecret);
         formData.add("grant_type=client_credentials");
+
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(tokenEndpoint))
                 .header("Content-Type", "application/x-www-form-urlencoded");
@@ -155,6 +177,7 @@ public class PayslipsService {
         HttpResponse<String> response = duHttpClient.send(request, HttpResponse.BodyHandlers.ofString());
         String responseBody = response.body();
         IdentityResponse parsedResponse = mapper.readValue(responseBody, IdentityResponse.class);
+
         return parsedResponse.token;
     }
 
@@ -202,6 +225,142 @@ public class PayslipsService {
             // Always delete the temporary file
             tempFile.delete();
         }
+    }
+
+    private JsonNode getClassifiers(String token) throws Exception {
+
+        String requestUrl = createBaseUri()+"/classifiers?api-version=1.0";
+
+        System.out.println("Retrieving UiPath classifiers...");
+        System.out.println("Classifiers URL: " + requestUrl);
+
+        HttpClient client = HttpClient.newHttpClient();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(requestUrl))
+                .header("Authorization", "Bearer " + token)
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println("Classifiers response status: "+ response.statusCode());
+        System.out.println("Classifiers response body: "+ response.body());
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException(
+                    "Failed to retrieve UiPath classifiers. HTTP status: "
+                            + response.statusCode()
+                            + ", response: "
+                            + response.body()
+            );
+        }
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readTree(response.body());
+    }
+
+
+    public JsonNode classifyDocument(String documentId, String token) throws Exception {
+        System.out.println("Classifying document");
+        String url = createBaseUri()
+                + classificationTag
+                + "/classification?api-version=1.0";
+
+        System.out.println("Classification URL: " + url);
+
+        String requestBody = mapper.createObjectNode()
+                .put("documentId", documentId)
+                .toString();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = duHttpClient.send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        System.out.println("Classification status: " + response.statusCode());
+        System.out.println("Classification response: " + response.body());
+
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new RuntimeException(
+                    "Classification failed. Status: "
+                            + response.statusCode()
+                            + ", Response: "
+                            + response.body()
+            );
+        }
+        JsonNode classificationResults = mapper.readTree(response.body());
+        System.out.println("Classified as: "+classificationResults);
+        if (classificationResults != null){
+
+            JsonNode result = classificationResults.get(0);
+
+            String documentTypeId = result.get("DocumentTypeId").asText();
+            double confidence = result.get("Confidence").asDouble();
+            String classifierName = result.get("ClassifierName").asText();
+
+            String documentTypeName = String.valueOf(PayslipDocumentType.fromId(documentTypeId));
+
+            System.out.println("===== CLASSIFICATION RESULT =====");
+            System.out.println("Document ID: " + documentId);
+            System.out.println("Document Type: " + documentTypeName);
+            System.out.println("Document Type ID: " + documentTypeId);
+            System.out.println("Confidence: " + confidence);
+            System.out.println("Classifier: " + classifierName);
+            System.out.println("=================================");
+        }
+        return classificationResults;
+    }
+
+    /*
+            I don't think I need it anymore
+     */
+    public JsonNode getTags(String authToken) throws Exception {
+
+        String url = createBaseUri()
+                + "tags"
+                + "?api-version=1.0";
+
+        System.out.println("Get Tags URL: " + url);
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "Bearer " + authToken)
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+
+        HttpClient client = HttpClient.newHttpClient();
+
+        HttpResponse<String> response =
+                client.send(
+                        request,
+                        HttpResponse.BodyHandlers.ofString()
+                );
+
+        System.out.println("Get Tags status: " + response.statusCode());
+        System.out.println("Get Tags response: " + response.body());
+
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new RuntimeException(
+                    "Failed to retrieve UiPath tags. HTTP "
+                            + response.statusCode()
+                            + ": "
+                            + response.body()
+            );
+        }
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        return objectMapper.readTree(response.body());
     }
 
     String temp_digitize(Path file, String token) throws Exception {
