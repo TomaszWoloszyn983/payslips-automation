@@ -49,6 +49,17 @@ public class PayslipsService {
     @Value("${uipath.classification-tag}")
     private String classificationTag;
 
+
+    /*
+
+        Dodałeś folder z samplami payslipów do projektu
+        Folder ten poszedł do githuba.
+        Wykasuj ten folder albo dodaj do gitignore
+        I wywal go z git
+
+
+     */
+
     private static HttpClient duHttpClient = HttpClient.newBuilder().build();
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -299,23 +310,31 @@ public class PayslipsService {
         }
         JsonNode classificationResults = mapper.readTree(response.body());
         System.out.println("Classified as: "+classificationResults);
-        if (classificationResults != null){
+        if (classificationResults != null) {
 
-            JsonNode result = classificationResults.get(0);
+            System.out.println("Test");
 
-            String documentTypeId = result.get("DocumentTypeId").asText();
-            double confidence = result.get("Confidence").asDouble();
-            String classifierName = result.get("ClassifierName").asText();
+            JsonNode results = classificationResults.get("classificationResults");
 
-            String documentTypeName = String.valueOf(PayslipDocumentType.fromId(documentTypeId));
+            if (results != null && results.isArray() && !results.isEmpty()) {
 
-            System.out.println("===== CLASSIFICATION RESULT =====");
-            System.out.println("Document ID: " + documentId);
-            System.out.println("Document Type: " + documentTypeName);
-            System.out.println("Document Type ID: " + documentTypeId);
-            System.out.println("Confidence: " + confidence);
-            System.out.println("Classifier: " + classifierName);
-            System.out.println("=================================");
+                JsonNode result = results.get(0);
+
+                String documentTypeId = result.get("DocumentTypeId").asText();
+                double confidence = result.get("Confidence").asDouble();
+                String classifierName = result.get("ClassifierName").asText();
+
+                String documentTypeName =
+                        PayslipDocumentType.fromId(documentTypeId).getDisplayName();
+
+                System.out.println("===== CLASSIFICATION RESULT =====");
+                System.out.println("Document ID: " + documentId);
+                System.out.println("Document Type: " + documentTypeName);
+                System.out.println("Document Type ID: " + documentTypeId);
+                System.out.println("Confidence: " + confidence);
+                System.out.println("Classifier: " + classifierName);
+                System.out.println("=================================");
+            }
         }
         return classificationResults;
     }
