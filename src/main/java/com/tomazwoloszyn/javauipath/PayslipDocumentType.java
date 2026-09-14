@@ -7,9 +7,9 @@ package com.tomazwoloszyn.javauipath;
  */
 public enum PayslipDocumentType {
 
-    PAPER_PAYSLIP(
+    IT_PAYSLIP(
             "00aa8760-ac9b-f111-9b33-002248a056d7",
-            "Paper Payslip",
+            "IT Payslip",
             "c2b6f168-939f-f111-9b33-000d3ab67660"
     ),
 
@@ -19,9 +19,9 @@ public enum PayslipDocumentType {
             "05d55b81-939f-f111-9b33-000d3ab67660"
     ),
 
-    IT_PAYSLIP(
+    PAPER_PAYSLIP(
             "97f7e520-4f8a-f111-b337-0022489f5fe3",
-            "IT Payslip",
+            "Paper Payslip",
             "40a5b5fe-939f-f111-9b33-000d3ab67660"
     );
 

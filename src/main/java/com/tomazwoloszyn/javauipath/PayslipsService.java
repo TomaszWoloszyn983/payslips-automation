@@ -58,6 +58,12 @@ public class PayslipsService {
         I wywal go z git
 
 
+        Podczas odczytu danych z kilku plików, błąd wyrzucony podczas przetwarzania
+        jednego z plików powoduje to że nie zostaje wygenerowany żaden wynik.
+        Nie wiem czy zawsze takie coś się będzie zdarzało, dlatego trzeba to
+       przetestować.
+
+
      */
 
     private static HttpClient duHttpClient = HttpClient.newBuilder().build();
@@ -121,6 +127,28 @@ public class PayslipsService {
 //        System.out.println("Tags retrived: " + classifiers.toString());
 
         JsonNode classification = classifyDocument(documentId, authToken);
+        String documentTypeId = classification.get("DocumentTypeId").asText();
+        String documentTypeName =
+                PayslipDocumentType.fromId(documentTypeId).getDisplayName();
+        System.out.println("Document classified as: " + documentTypeName);
+        PayslipsService.ExtractionResponse extractionResponse = null;
+        switch (documentTypeName) {
+            case "Electronic Payslip":
+                extractionResponse = extractData(
+                    EXTRACTOR_ID, documentId, authToken);
+                    System.out.println("Data extracted.");
+                    break;
+            case "Paper Payslip":
+                System.out.println("Paper payslip");
+                break;
+            case "IT Payslip":
+                System.out.println("It payslip");
+                break;
+            default:
+                System.out.println("Unknown Payslip type: " + documentTypeName);
+//                throw new RuntimeException("Invalid document type.");
+                break;
+        }
 
 
 //        I think I only used this function to check what the Tags were.
@@ -129,8 +157,8 @@ public class PayslipsService {
 //        System.out.println("Tags retrived: " + tags.toString());
 
 //        Extractors List is a list of extractors Deployed Versions.
-        PayslipsService.ExtractorList extractorsList = getExtractorsList(authToken);
-        System.out.println("Available extractors: "+extractorsList.extractors.size());
+//        PayslipsService.ExtractorList extractorsList = getExtractorsList(authToken);
+//        System.out.println("Available extractors: "+extractorsList.extractors.size());
 //        for(Extractor extractor : extractorsList.extractors){
 //            System.out.println(extractor.name+ " - " + extractor.id+" - "+extractor.status);
 //        }
@@ -138,9 +166,6 @@ public class PayslipsService {
 
 //        Extract data from the Payslip
 
-        PayslipsService.ExtractionResponse extractionResponse = extractData(
-                EXTRACTOR_ID, documentId, authToken);
-        System.out.println("Data extracted.");
 
         return convertResultsToMap(extractionResponse);
     }
@@ -309,24 +334,16 @@ public class PayslipsService {
             );
         }
         JsonNode classificationResults = mapper.readTree(response.body());
-        System.out.println("Classified as: "+classificationResults);
         if (classificationResults != null) {
-
-            System.out.println("Test");
-
             JsonNode results = classificationResults.get("classificationResults");
 
             if (results != null && results.isArray() && !results.isEmpty()) {
-
                 JsonNode result = results.get(0);
-
                 String documentTypeId = result.get("DocumentTypeId").asText();
                 double confidence = result.get("Confidence").asDouble();
                 String classifierName = result.get("ClassifierName").asText();
-
                 String documentTypeName =
                         PayslipDocumentType.fromId(documentTypeId).getDisplayName();
-
                 System.out.println("===== CLASSIFICATION RESULT =====");
                 System.out.println("Document ID: " + documentId);
                 System.out.println("Document Type: " + documentTypeName);
@@ -334,9 +351,10 @@ public class PayslipsService {
                 System.out.println("Confidence: " + confidence);
                 System.out.println("Classifier: " + classifierName);
                 System.out.println("=================================");
+                return result;
             }
         }
-        return classificationResults;
+        return null;
     }
 
     /*
