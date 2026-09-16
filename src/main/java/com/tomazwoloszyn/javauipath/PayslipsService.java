@@ -123,26 +123,36 @@ public class PayslipsService {
         String documentId = digitize(file, authToken);
         System.out.println("Document ID: " + documentId);
 
-//        JsonNode classifiers = getClassifiers(authToken);
-//        System.out.println("Tags retrived: " + classifiers.toString());
+        JsonNode classifiers = getClassifiers(authToken);
+        System.out.println("Tags retrived: " + classifiers.toString());
+
+
+//        Extractors List is a list of extractors Deployed Versions.
+        PayslipsService.ExtractorList extractorsList = getExtractorsList(authToken);
+        System.out.println("Available extractors: "+extractorsList.extractors.size());
+        for(Extractor extractor : extractorsList.extractors){
+            System.out.println(extractor.name+ " - " + extractor.id+" - "+extractor.status);
+        }
 
         JsonNode classification = classifyDocument(documentId, authToken);
         String documentTypeId = classification.get("DocumentTypeId").asText();
         String documentTypeName =
                 PayslipDocumentType.fromId(documentTypeId).getDisplayName();
-        System.out.println("Document classified as: " + documentTypeName);
         PayslipsService.ExtractionResponse extractionResponse = null;
         switch (documentTypeName) {
             case "Electronic Payslip":
-                extractionResponse = extractData(
-                    EXTRACTOR_ID, documentId, authToken);
-                    System.out.println("Data extracted.");
-                    break;
+                extractionResponse = extractData("2929ed78-f58b-f111-b339-000d3a673b82", documentId, authToken);
+                System.out.println("Data extracted.");
+                break;
             case "Paper Payslip":
                 System.out.println("Paper payslip");
+                extractionResponse = extractData(documentTypeId, documentId, authToken);
+                System.out.println("Data extracted.");
                 break;
             case "IT Payslip":
-                System.out.println("It payslip");
+                System.out.println("ImagineTec payslip");
+                extractionResponse = extractData(documentTypeId, documentId, authToken);
+                System.out.println("Data extracted.");
                 break;
             default:
                 System.out.println("Unknown Payslip type: " + documentTypeName);
@@ -156,12 +166,6 @@ public class PayslipsService {
 //        JsonNode tags = getTags(authToken);
 //        System.out.println("Tags retrived: " + tags.toString());
 
-//        Extractors List is a list of extractors Deployed Versions.
-//        PayslipsService.ExtractorList extractorsList = getExtractorsList(authToken);
-//        System.out.println("Available extractors: "+extractorsList.extractors.size());
-//        for(Extractor extractor : extractorsList.extractors){
-//            System.out.println(extractor.name+ " - " + extractor.id+" - "+extractor.status);
-//        }
 
 
 //        Extract data from the Payslip
@@ -400,56 +404,6 @@ public class PayslipsService {
         return objectMapper.readTree(response.body());
     }
 
-    String temp_digitize(Path file, String token) throws Exception {
-        System.out.println("Digitizing file");
-        HttpEntity httpEntity = MultipartEntityBuilder.create()
-                .addBinaryBody(
-                        "file",
-                        file.toFile(),                     // <-- Use the temporary File
-                        ContentType.DEFAULT_BINARY,
-                        file.getFileName().toString())           // <-- Original filename is not required
-                .build();
-
-        Pipe pipe = Pipe.open();
-
-        new Thread(() -> {
-            try (OutputStream outputStream = Channels.newOutputStream(pipe.sink())) {
-                httpEntity.writeTo(outputStream);
-                System.out.println("Write to output stream.");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }).start();
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(createBaseUri() + "digitization/start?api-version=1")) // <-- BASE_URI instead of baseUri
-                .header("Content-Type", httpEntity.getContentType().getValue())
-                .header("Authorization", "Bearer " + token)
-                .POST(BodyPublishers.ofInputStream(() -> Channels.newInputStream(pipe.source())))
-                .build();
-
-        HttpResponse<String> response =
-                duHttpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        /*
-        * Checking the response and throwing error is the response status code is not
-        * satisfying.
-        * */
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new RuntimeException(
-                    "UiPath digitization failed. HTTP " +
-                            response.statusCode() +
-                            ": " +
-                            response.body()
-            );
-        }
-
-        String responseBody = response.body();
-        DigitizeResponse parsedResponse =
-                mapper.readValue(responseBody, DigitizeResponse.class);
-        return parsedResponse.documentId;
-    }
-
     /*
         Http Request and Response taken from UiPath were deleted and replaced
         with manually added requests taken from Swagger UI
@@ -501,6 +455,54 @@ public class PayslipsService {
         );
         System.out.println("Response status: " + response.statusCode());
         return parsedResponse;
+    }
+
+    public JsonNode extractDataByTag(String documentId, String documentTypeId, String token) throws Exception {
+        System.out.println("Extracting data");
+
+        String url = createBaseUri()
+                + classificationTag
+                + "/document-types/"
+                +documentTypeId
+                +"/extraction?api-version=1";
+        System.out.println("Extraction URL: " + url);
+
+        String requestBody = mapper.createObjectNode()
+                .put("documentId", documentId)
+                .toString();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .build();
+
+        HttpResponse<String> response = duHttpClient.send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        System.out.println("Extraction status: " + response.statusCode());
+        System.out.println("Extraction response: " + response.body());
+
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new RuntimeException(
+                    "Extraction failed. Status: "
+                            + response.statusCode()
+                            + ", Response: "
+                            + response.body()
+            );
+        }
+
+        JsonNode extractionResponse = mapper.readTree(response.body());
+
+        System.out.println("===== EXTRACTION RESULT =====");
+        System.out.println(extractionResponse.toPrettyString());
+        System.out.println("=============================");
+
+        return extractionResponse;
+
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

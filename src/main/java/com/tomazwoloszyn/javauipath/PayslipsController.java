@@ -34,6 +34,7 @@ public class PayslipsController {
         this.payslipsService = payslipsService;
     }
 
+//    @Value("${app.max-file-size}")
     private long MAX_FILE_SIZE = 10 * 1024 * 1024;// 10 MB
 
     @GetMapping("/")
