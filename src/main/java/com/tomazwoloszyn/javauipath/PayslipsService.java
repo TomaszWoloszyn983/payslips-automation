@@ -44,8 +44,6 @@ public class PayslipsService {
     private String TENANT_NAME;
     @Value("${uipath.project-id}")
     private String PROJECT_ID;
-    @Value("${uipath.extractor-id}")
-    private String EXTRACTOR_ID;
     @Value("${uipath.classification-tag}")
     private String classificationTag;
 
@@ -70,27 +68,6 @@ public class PayslipsService {
 
     private static HttpClient duHttpClient = HttpClient.newBuilder().build();
     private final ObjectMapper mapper = new ObjectMapper();
-
-    public ExtractionResponse extractPayslip(MultipartFile file) throws Exception {
-        String token = authenticate(APP_ID, APP_SECRET);
-        String documentId = digitize(file, token);
-        ExtractorList extractorList = getExtractorsList(token);
-
-        Extractor extractor = extractorList.extractors.stream()
-                .filter(e -> "Available".equals(e.status))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No available extractor found."));
-
-        return extractData(extractor.id, documentId, token);
-    }
-
-    private String send(HttpRequest request)
-            throws IOException, InterruptedException {
-
-        return duHttpClient
-            .send(request, HttpResponse.BodyHandlers.ofString())
-            .body();
-    }
 
     private String createBaseUri(){
         return PLATFORM_URL + "/" +
@@ -119,62 +96,20 @@ public class PayslipsService {
 //                    +"\n"+"EXTRACTOR_ID - "+EXTRACTOR_ID
 //                    +"\n"+"Base url - "+createBaseUri());
 
+//        Authentication
         String authToken = authenticate(APP_ID, APP_SECRET);
         System.out.println("Token generated: " + (authToken != null));
 
+//        Document classification
         String documentId = digitize(file, authToken);
         System.out.println("Document ID: " + documentId);
 
-        JsonNode classifiers = getClassifiers(authToken);
-        System.out.println("Tags retrived: " + classifiers.toString());
-
-
-//        Extractors List is a list of extractors Deployed Versions.
-        PayslipsService.ExtractorList extractorsList = getExtractorsList(authToken);
-        System.out.println("Available extractors: "+extractorsList.extractors.size());
-        for(Extractor extractor : extractorsList.extractors){
-            System.out.println(extractor.name+ " - " + extractor.id+" - "+extractor.status);
-        }
-
+//        Data Extraction
         JsonNode classification = classifyDocument(documentId, authToken);
         String documentTypeId = classification.get("DocumentTypeId").asText();
         String documentTypeName = PayslipDocumentType.fromId(documentTypeId).getDisplayName();
         String extractor = PayslipDocumentType.fromId(documentTypeId).getExtractorId();
         PayslipsService.ExtractionResponse extractionResponse = extractData(documentId, extractor, authToken);
-//        extractionResponse = extractData(documentId, extractor, authToken);
-//        switch (documentTypeName) {
-//            case "Electronic Payslip":
-//                extractionResponse = extractData(documentId, extractor, authToken);
-////                extractDataByTag(documentId, documentTypeId, authToken);
-//                System.out.println("Data extracted.");
-//                break;
-//            case "Paper Payslip":
-//                System.out.println("Paper payslip");
-//                extractionResponse = extractDataByTag(documentId, extractor, authToken);
-//                System.out.println("Data extracted.");
-//                break;
-//            case "IT Payslip":
-//                System.out.println("ImagineTec payslip");
-////                extractionResponse = extractDataByTag(documentId, documentTypeId, authToken);
-//                extractionResponse = extractData(documentId, extractor, authToken);
-//                System.out.println("Data extracted.");
-//                break;
-//            default:
-//                System.out.println("Unknown Payslip type: " + documentTypeName);
-////                throw new RuntimeException("Invalid document type.");
-//                break;
-//        }
-
-
-//        I think I only used this function to check what the Tags were.
-//        I don't think I need it this method anymore'
-//        JsonNode tags = getTags(authToken);
-//        System.out.println("Tags retrived: " + tags.toString());
-
-
-
-//        Extract data from the Payslip
-
 
         return convertResultsToMap(extractionResponse);
     }
@@ -275,7 +210,6 @@ public class PayslipsService {
     private JsonNode getClassifiers(String token) throws Exception {
 
         String requestUrl = createBaseUri()+"/classifiers?api-version=1.0";
-
         System.out.println("Retrieving UiPath classifiers...");
         System.out.println("Classifiers URL: " + requestUrl);
 
@@ -332,7 +266,7 @@ public class PayslipsService {
         );
 
         System.out.println("Classification status: " + response.statusCode());
-        System.out.println("Classification response: " + response.body());
+//        System.out.println("Classification response: " + response.body());
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new RuntimeException(
@@ -353,63 +287,20 @@ public class PayslipsService {
                 String classifierName = result.get("ClassifierName").asText();
                 String documentTypeName =
                         PayslipDocumentType.fromId(documentTypeId).getDisplayName();
-                System.out.println("===== CLASSIFICATION RESULT =====");
-                System.out.println("Document ID: " + documentId);
-                System.out.println("Document Type: " + documentTypeName);
-                System.out.println("Document Type ID: " + documentTypeId);
-                System.out.println("Confidence: " + confidence);
-                System.out.println("Classifier: " + classifierName);
-                System.out.println("=================================");
+                System.out.println("===== CLASSIFICATION RESULT ====="
+                        +"\nDocument ID: " + documentId
+                        +"\nDocument Type: " + documentTypeName
+                        +"\nDocument Type ID: " + documentTypeId
+                        +"\nConfidence: " + confidence
+                        +"\nClassifier: " + classifierName
+                        +"\n=================================");
                 return result;
             }
         }
         return null;
     }
 
-    /*
-            I don't think I need it anymore
-     */
-    public JsonNode getTags(String authToken) throws Exception {
-
-        String url = createBaseUri()
-                + "tags"
-                + "?api-version=1.0";
-
-        System.out.println("Get Tags URL: " + url);
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Authorization", "Bearer " + authToken)
-                .header("Accept", "application/json")
-                .GET()
-                .build();
-
-        HttpClient client = HttpClient.newHttpClient();
-
-        HttpResponse<String> response =
-                client.send(
-                        request,
-                        HttpResponse.BodyHandlers.ofString()
-                );
-
-        System.out.println("Get Tags status: " + response.statusCode());
-        System.out.println("Get Tags response: " + response.body());
-
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new RuntimeException(
-                    "Failed to retrieve UiPath tags. HTTP "
-                            + response.statusCode()
-                            + ": "
-                            + response.body()
-            );
-        }
-
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        return objectMapper.readTree(response.body());
-    }
-
-    /*
+     /*
         Http Request and Response taken from UiPath were deleted and replaced
         with manually added requests taken from Swagger UI
      */
@@ -462,56 +353,6 @@ public class PayslipsService {
         return parsedResponse;
     }
 
-    public ExtractionResponse extractDataByTag(String documentId, String documentTypeId,
-            String token) throws Exception {
-
-        System.out.println("Extracting document fields");
-
-        String url = createBaseUri()
-                + classificationTag
-                + "/document-types/"
-                + documentTypeId
-                + "/extraction?api-version=1.0";
-
-        System.out.println("Extraction URL: " + url);
-
-        String requestBody = mapper.createObjectNode()
-                .put("documentId", documentId)
-                .toString();
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .header("Authorization", "Bearer " + token)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
-
-        HttpResponse<String> response = duHttpClient.send(
-                request,
-                HttpResponse.BodyHandlers.ofString()
-        );
-
-        System.out.println("Extraction status: " + response.statusCode());
-        System.out.println("Extraction response: " + response.body());
-
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new RuntimeException(
-                    "Extraction failed. Status: "
-                            + response.statusCode()
-                            + ", Response: "
-                            + response.body()
-            );
-        }
-
-        ExtractionResponse extractionResponse =
-                mapper.readValue(response.body(), ExtractionResponse.class);
-
-        System.out.println("===== EXTRACTION RESULT =====");
-        System.out.println(extractionResponse);
-        System.out.println("=============================");
-
-        return extractionResponse;
-    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class IdentityResponse {
