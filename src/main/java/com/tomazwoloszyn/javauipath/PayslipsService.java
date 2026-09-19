@@ -63,7 +63,9 @@ public class PayslipsService {
         Nie wiem czy zawsze takie coś się będzie zdarzało, dlatego trzeba to
        przetestować.
 
-
+        Można dodać do dokumentacji info o extractorach,
+        o tym jak używam ich w Switch/case. Aby na przyszłość przestrzegać jakichś
+        zasad nazewnictwa.
      */
 
     private static HttpClient duHttpClient = HttpClient.newBuilder().build();
@@ -136,29 +138,32 @@ public class PayslipsService {
 
         JsonNode classification = classifyDocument(documentId, authToken);
         String documentTypeId = classification.get("DocumentTypeId").asText();
-        String documentTypeName =
-                PayslipDocumentType.fromId(documentTypeId).getDisplayName();
-        PayslipsService.ExtractionResponse extractionResponse = null;
-        switch (documentTypeName) {
-            case "Electronic Payslip":
-                extractionResponse = extractData("2929ed78-f58b-f111-b339-000d3a673b82", documentId, authToken);
-                System.out.println("Data extracted.");
-                break;
-            case "Paper Payslip":
-                System.out.println("Paper payslip");
-                extractionResponse = extractData(documentTypeId, documentId, authToken);
-                System.out.println("Data extracted.");
-                break;
-            case "IT Payslip":
-                System.out.println("ImagineTec payslip");
-                extractionResponse = extractData(documentTypeId, documentId, authToken);
-                System.out.println("Data extracted.");
-                break;
-            default:
-                System.out.println("Unknown Payslip type: " + documentTypeName);
-//                throw new RuntimeException("Invalid document type.");
-                break;
-        }
+        String documentTypeName = PayslipDocumentType.fromId(documentTypeId).getDisplayName();
+        String extractor = PayslipDocumentType.fromId(documentTypeId).getExtractorId();
+        PayslipsService.ExtractionResponse extractionResponse = extractData(documentId, extractor, authToken);
+//        extractionResponse = extractData(documentId, extractor, authToken);
+//        switch (documentTypeName) {
+//            case "Electronic Payslip":
+//                extractionResponse = extractData(documentId, extractor, authToken);
+////                extractDataByTag(documentId, documentTypeId, authToken);
+//                System.out.println("Data extracted.");
+//                break;
+//            case "Paper Payslip":
+//                System.out.println("Paper payslip");
+//                extractionResponse = extractDataByTag(documentId, extractor, authToken);
+//                System.out.println("Data extracted.");
+//                break;
+//            case "IT Payslip":
+//                System.out.println("ImagineTec payslip");
+////                extractionResponse = extractDataByTag(documentId, documentTypeId, authToken);
+//                extractionResponse = extractData(documentId, extractor, authToken);
+//                System.out.println("Data extracted.");
+//                break;
+//            default:
+//                System.out.println("Unknown Payslip type: " + documentTypeName);
+////                throw new RuntimeException("Invalid document type.");
+//                break;
+//        }
 
 
 //        I think I only used this function to check what the Tags were.
@@ -431,7 +436,7 @@ public class PayslipsService {
         return parsedResponse;
     }
 
-    ExtractionResponse extractData(String extractorId, String documentId, String token) throws Exception {
+    ExtractionResponse extractData(String documentId, String extractorId, String token) throws Exception {
         System.out.println("Extracting data");
 
         String url = createBaseUri()
@@ -457,14 +462,17 @@ public class PayslipsService {
         return parsedResponse;
     }
 
-    public JsonNode extractDataByTag(String documentId, String documentTypeId, String token) throws Exception {
-        System.out.println("Extracting data");
+    public ExtractionResponse extractDataByTag(String documentId, String documentTypeId,
+            String token) throws Exception {
+
+        System.out.println("Extracting document fields");
 
         String url = createBaseUri()
                 + classificationTag
                 + "/document-types/"
-                +documentTypeId
-                +"/extraction?api-version=1";
+                + documentTypeId
+                + "/extraction?api-version=1.0";
+
         System.out.println("Extraction URL: " + url);
 
         String requestBody = mapper.createObjectNode()
@@ -495,14 +503,14 @@ public class PayslipsService {
             );
         }
 
-        JsonNode extractionResponse = mapper.readTree(response.body());
+        ExtractionResponse extractionResponse =
+                mapper.readValue(response.body(), ExtractionResponse.class);
 
         System.out.println("===== EXTRACTION RESULT =====");
-        System.out.println(extractionResponse.toPrettyString());
+        System.out.println(extractionResponse);
         System.out.println("=============================");
 
         return extractionResponse;
-
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
