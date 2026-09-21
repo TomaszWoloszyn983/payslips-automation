@@ -1,5 +1,7 @@
 # Payslip Reader Automation
 
+![workflow](/src/media/app_main_page.png)
+
 A Java Spring Boot web application that automates the extraction of data from PDF payslips using the UiPath Document Understanding Cloud API.
 
 The application allows a user to upload a payslip through a web interface. The backend sends the document to UiPath Document Understanding for digitization and data extraction, processes the returned data, and displays the extracted fields to the user.
@@ -26,18 +28,20 @@ Demo version available [Here](https://payslips-automation.onrender.com/)
 - **Java**
 - **Spring Boot**
 - **REST APIs**
+- **UiPath Document Understanding**
 - **HTTP Client / API integration**
 - **OAuth 2.0 authentication**
-- **UiPath Document Understanding**
-- **JSON / Jackson**
 - **Multipart file uploads**
-- **HTML / JavaScript**
 - **Maven**
+- **HTML / JavaScript**
+- **JSON / Jackson**
 - **Environment-based configuration**
 - **Object-Oriented Programming**
 - **Exception handling**
 
 ## Architecture
+
+![workflow](/src/media/workflow_diagram.jpg)
 
 ```text
 Web Browser
@@ -51,6 +55,7 @@ PayslipsService
      |
      | OAuth 2.0 authentication
      | Document upload
+     | Document Classification
      | Data extraction
      v
 UiPath Document Understanding API
